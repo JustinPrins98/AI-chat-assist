@@ -116,7 +116,24 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+}
+
+
+
+.prose.prose-sm h3 {
+  font-size: 20px;
+  font-weight: 600;
+  padding-bottom: 5px;
+}
+
+.prose.prose-sm article {
+  padding-block: 1.5rem;
+}
+
+.prose.prose-sm article:first-of-type {
+  padding-top: 0;
 }
