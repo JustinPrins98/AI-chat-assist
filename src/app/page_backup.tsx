@@ -10,14 +10,45 @@ export default function Home() {
   const [isTaskGuidanceActive, setIsTaskGuidanceActive] = useState(false);
   const [activeTask, setActiveTask] = useState('Verplaats hoofdknop naar boven de vouw');
   const [isFullScreen, setIsFullScreen] = useState(true); // Default to full screen
+  
+  // Gesprekgeschiedenis state
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [showSidebar, setShowSidebar] = useState(true);
 
   useEffect(() => {
-    const saved = localStorage.getItem('chatMessages');
-    if (saved) {
+    // Laad gesprekken uit localStorage
+    const savedConversations = localStorage.getItem('conversations');
+    if (savedConversations) {
       try {
-        setMessages(JSON.parse(saved));
+        const parsedConversations = JSON.parse(savedConversations);
+        setConversations(parsedConversations);
+        
+        // Laad het laatste gesprek als er geen huidige conversatie is
+        if (parsedConversations.length > 0) {
+          const lastConversation = parsedConversations[parsedConversations.length - 1];
+          setCurrentConversationId(lastConversation.id);
+          setMessages(lastConversation.messages || []);
+        }
       } catch (e) {
-        console.error('Error parsing saved messages:', e);
+        console.error('Error parsing saved conversations:', e);
+      }
+    }
+    
+    // Legacy support: migreer oude berichten naar nieuwe conversatie structuur
+    const saved = localStorage.getItem('chatMessages');
+    if (saved && !localStorage.getItem('conversations')) {
+      try {
+        const oldMessages = JSON.parse(saved);
+        if (oldMessages.length > 0) {
+          const newConversation = createNewConversation(oldMessages);
+          setConversations([newConversation]);
+          setCurrentConversationId(newConversation.id);
+          setMessages(oldMessages);
+          localStorage.removeItem('chatMessages'); // Remove old format
+        }
+      } catch (e) {
+        console.error('Error migrating old messages:', e);
       }
     }
   }, []);
@@ -29,8 +60,78 @@ export default function Home() {
     }
   }, [messages]);
 
-  const saveMessages = (newMessages) => {
-    localStorage.setItem('chatMessages', JSON.stringify(newMessages));
+  // Helper functies voor gesprekgeschiedenis
+  const createNewConversation = (initialMessages: any[] = []) => {
+    const id = Date.now().toString();
+    const title = initialMessages.length > 0 && initialMessages[0]?.content
+      ? initialMessages[0].content.substring(0, 50) + (initialMessages[0].content.length > 50 ? '...' : '')
+      : 'Nieuw gesprek';
+    
+    return {
+      id,
+      title,
+      messages: initialMessages,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+  };
+
+  const saveConversations = (updatedConversations: any[]) => {
+    localStorage.setItem('conversations', JSON.stringify(updatedConversations));
+    setConversations(updatedConversations);
+  };
+
+  const startNewConversation = () => {
+    const newConversation = createNewConversation();
+    const updatedConversations = [...conversations, newConversation];
+    saveConversations(updatedConversations);
+    setCurrentConversationId(newConversation.id);
+    setMessages([]);
+    setIsTaskGuidanceActive(false);
+  };
+
+  const loadConversation = (conversationId: string) => {
+    const conversation = conversations.find(c => c.id === conversationId);
+    if (conversation) {
+      setCurrentConversationId(conversationId);
+      setMessages(conversation.messages || []);
+    }
+  };
+
+  const updateCurrentConversation = (newMessages: any[]) => {
+    if (!currentConversationId) {
+      // Geen huidige conversatie, maak een nieuwe aan
+      const newConversation = createNewConversation(newMessages);
+      const updatedConversations = [...conversations, newConversation];
+      saveConversations(updatedConversations);
+      setCurrentConversationId(newConversation.id);
+    } else {
+      // Update bestaande conversatie
+      const updatedConversations = conversations.map(conv => 
+        conv.id === currentConversationId 
+          ? { ...conv, messages: newMessages, updatedAt: new Date().toISOString() }
+          : conv
+      );
+      saveConversations(updatedConversations);
+    }
+  };
+
+  const deleteConversation = (conversationId: string) => {
+    const updatedConversations = conversations.filter(c => c.id !== conversationId);
+    saveConversations(updatedConversations);
+    
+    if (currentConversationId === conversationId) {
+      if (updatedConversations.length > 0) {
+        loadConversation(updatedConversations[updatedConversations.length - 1].id);
+      } else {
+        setCurrentConversationId(null);
+        setMessages([]);
+      }
+    }
+  };
+
+  const saveMessages = (newMessages: any[]) => {
+    updateCurrentConversation(newMessages);
   };
 
   const handleSubmit = async () => {
@@ -83,8 +184,7 @@ export default function Home() {
   };
 
   const clearChat = () => {
-    setMessages([]);
-    localStorage.removeItem('chatMessages');
+    startNewConversation();
   };
 
   const simulateTaskGuidance = async () => {
@@ -165,45 +265,117 @@ export default function Home() {
     <>
       {isFullScreen ? (
         // FULL SCREEN INTERFACE
-        <div className="h-screen bg-white flex flex-col">
-          {/* Top Header - Full Width */}
-          <header className="border-b border-gray-200 bg-white">
-            <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
-              {/* Left side - Title & Status */}
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-4l-4 4z" />
+        <div className="h-screen bg-white flex">
+          {/* Sidebar - Gesprekgeschiedenis */}
+          {showSidebar && (
+            <div className="w-64 bg-gray-50 border-r border-gray-200 flex flex-col">
+              {/* Sidebar Header */}
+              <div className="p-4 border-b border-gray-200">
+                <button
+                  onClick={startNewConversation}
+                  className="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors cursor-pointer flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Nieuw gesprek
+                </button>
+              </div>
+
+              {/* Gesprekkenlijst */}
+              <div className="flex-1 overflow-y-auto p-3">
+                <div className="space-y-2">
+                  {conversations.slice().reverse().map((conversation) => (
+                    <div
+                      key={conversation.id}
+                      className={`group flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${
+                        currentConversationId === conversation.id
+                          ? 'bg-blue-100 border border-blue-200'
+                          : 'hover:bg-gray-100'
+                      }`}
+                      onClick={() => loadConversation(conversation.id)}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 truncate">
+                          {conversation.title}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {new Date(conversation.updatedAt).toLocaleDateString('nl-NL')}
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteConversation(conversation.id);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                  {conversations.length === 0 && (
+                    <div className="text-center text-gray-500 text-sm py-8">
+                      Nog geen gesprekken
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Main Content */}
+          <div className="flex-1 flex flex-col">
+            {/* Top Header - Full Width */}
+            <header className="border-b border-gray-200 bg-white">
+              <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+                {/* Left side - Title & Status */}
+                <div className="flex items-center gap-4">
+                  {/* Sidebar Toggle */}
+                  <button
+                    onClick={() => setShowSidebar(!showSidebar)}
+                    className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
-                  </div>
-                  <div>
-                    <h1 className="font-semibold text-lg text-gray-900">AI Marketing Assistant</h1>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-sm ${isTaskGuidanceActive ? 'text-green-600' : 'text-gray-500'}`}>
-                        {isTaskGuidanceActive ? '🎯 Taakbegeleiding actief' : 'Standby modus'}
-                      </span>
-                      {isTaskGuidanceActive && (
-                        <>
-                          <span className="text-gray-300">•</span>
-                          <span className="text-sm text-gray-600">{activeTask}</span>
-                        </>
-                      )}
+                  </button>
+
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-4l-4 4z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h1 className="font-semibold text-lg text-gray-900">AI Marketing Assistant</h1>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm ${isTaskGuidanceActive ? 'text-green-600' : 'text-gray-500'}`}>
+                          {isTaskGuidanceActive ? '🎯 Taakbegeleiding actief' : 'Standby modus'}
+                        </span>
+                        {isTaskGuidanceActive && (
+                          <>
+                            <span className="text-gray-300">•</span>
+                            <span className="text-sm text-gray-600">{activeTask}</span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Right side - Controls */}
-              <div className="flex items-center gap-3">
-                {/* Interface Toggle */}
-                <button
-                  onClick={() => setIsFullScreen(false)}
-                  className="px-3 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 text-sm rounded-lg transition-colors cursor-pointer border"
-                  title="Schakel naar Overlay Interface"
-                >
-                  📱 Overlay
-                </button>
+                {/* Right side - Controls */}
+                <div className="flex items-center gap-3">
+                  {/* Interface Toggle */}
+                  <button
+                    onClick={() => setIsFullScreen(false)}
+                    className="px-3 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 text-sm rounded-lg transition-colors cursor-pointer border"
+                    title="Schakel naar Overlay Interface"
+                  >
+                    📱 Overlay
+                  </button>
 
                 {/* LLM Selector */}
                 <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
