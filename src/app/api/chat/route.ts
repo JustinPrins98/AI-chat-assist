@@ -3,6 +3,12 @@ import OpenAI from 'openai';
 import { Mistral } from '@mistralai/mistralai';
 import { ga4ExampleData } from '@/lib/ga4-sample-data';
 
+interface Message {
+    type: 'user' | 'ai';
+    content: string;
+    timestamp: string;
+}
+
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
 });

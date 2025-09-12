@@ -1,14 +1,30 @@
 'use client';
 import { useEffect, useState, useRef } from 'react';
 
+interface Message {
+  type: 'user' | 'ai';
+  content: string;
+  timestamp: string;
+}
+
+interface Conversation {
+  id: string;
+  title: string;
+  timestamp: string;
+  messages: Message[];
+  isTaskGuidanceActive: boolean;
+  activeTask: string;
+  selectedProvider: string;
+}
+
 export default function Home() {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [prompt, setPrompt] = useState('');
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState('openai');
   const [isTaskGuidanceActive, setIsTaskGuidanceActive] = useState(false);
-  const [activeTask, setActiveTask] = useState('Verplaats hoofdknop naar boven de vouw');
+  const activeTask = 'Verplaats hoofdknop naar boven de vouw';
   const [isFullScreen, setIsFullScreen] = useState(true); // Default to full screen
 
   useEffect(() => {
@@ -29,7 +45,7 @@ export default function Home() {
     }
   }, [messages]);
 
-  const saveMessages = (newMessages) => {
+  const saveMessages = (newMessages: Message[]) => {
     localStorage.setItem('chatMessages', JSON.stringify(newMessages));
   };
 
@@ -37,7 +53,7 @@ export default function Home() {
     if (!prompt.trim()) return;
 
     setLoading(true);
-    const userMessage = { type: 'user', content: prompt, timestamp: new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }) };
+    const userMessage: Message = { type: 'user', content: prompt, timestamp: new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }) };
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
     setPrompt('');
@@ -60,8 +76,8 @@ export default function Home() {
         `Response received from ${data.provider ?? 'unknown'} using ${data.modelUsed ?? 'unknown model'} (${data.tokensUsed ?? '?'} tokens)`
       );
 
-      const aiMessage = {
-        type: 'ai',
+      const aiMessage: Message = {
+        type: 'ai' as const,
         content: data.reply,
         timestamp: new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
       };
@@ -75,7 +91,7 @@ export default function Home() {
     setLoading(false);
   };
 
-  const handleKeyPress = (e) => {
+  const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
@@ -107,8 +123,8 @@ export default function Home() {
       const data = await res.json();
 
 
-      const welcomeMessage = {
-        type: 'ai',
+      const welcomeMessage: Message = {
+        type: 'ai' as const,
         content: data.reply,
         timestamp: new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
       };
@@ -144,8 +160,8 @@ export default function Home() {
       });
       const data = await res.json();
 
-      const feedbackMessage = {
-        type: 'ai',
+      const feedbackMessage: Message = {
+        type: 'ai' as const,
         content: data.reply,
         timestamp: new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
       };
@@ -211,8 +227,8 @@ export default function Home() {
                   <button
                     onClick={() => setSelectedProvider('openai')}
                     className={`px-2 py-1 text-xs rounded font-medium transition-colors cursor-pointer ${selectedProvider === 'openai'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-white hover:bg-gray-100 text-gray-700 border'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border'
                       }`}
                   >
                     GPT-4
@@ -220,8 +236,8 @@ export default function Home() {
                   <button
                     onClick={() => setSelectedProvider('mistral')}
                     className={`px-2 py-1 text-xs rounded font-medium transition-colors cursor-pointer ${selectedProvider === 'mistral'
-                        ? 'bg-orange-500 text-white'
-                        : 'bg-white hover:bg-gray-100 text-gray-700 border'
+                      ? 'bg-orange-500 text-white'
+                      : 'bg-white hover:bg-gray-100 text-gray-700 border'
                       }`}
                   >
                     Mistral
@@ -295,7 +311,7 @@ export default function Home() {
               )}
 
               <div className="space-y-6">
-                {messages.map((message, index) => (
+                {messages.map((message: Message, index: number) => (
                   <div key={index} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-3xl ${message.type === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-50'} rounded-2xl px-6 py-4`}>
                       {message.type === 'ai' && (
@@ -543,7 +559,7 @@ export default function Home() {
             {/* Chat Messages - Witte achtergrond */}
             <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 bg-white">
               <div className="space-y-4">
-                {messages.map((message, index) => (
+                {messages.map((message: Message, index: number) => (
                   <div key={index} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl ${message.type === 'user'
                       ? 'bg-blue-500 text-white'
