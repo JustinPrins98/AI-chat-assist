@@ -7,16 +7,6 @@ interface Message {
   timestamp: string;
 }
 
-interface Conversation {
-  id: string;
-  title: string;
-  timestamp: string;
-  messages: Message[];
-  isTaskGuidanceActive: boolean;
-  activeTask: string;
-  selectedProvider: string;
-}
-
 export default function Home() {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [prompt, setPrompt] = useState('');

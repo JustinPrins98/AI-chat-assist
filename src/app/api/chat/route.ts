@@ -3,10 +3,10 @@ import OpenAI from 'openai';
 import { Mistral } from '@mistralai/mistralai';
 import { ga4ExampleData } from '@/lib/ga4-sample-data';
 
-interface Message {
+interface MessageType {
     type: 'user' | 'ai';
     content: string;
-    timestamp: string;
+    timestamp?: string;
 }
 
 const openai = new OpenAI({
@@ -106,7 +106,7 @@ KRITIEK:
             prompt.toLowerCase().includes('verkeer') ||
             prompt.toLowerCase().includes('prestaties') ||
             prompt.toLowerCase().includes('rapport') ||
-            messages.some(msg => msg.content && (
+            messages.some((msg: MessageType) => msg.content && (
                 msg.content.toLowerCase().includes('analytics') ||
                 msg.content.toLowerCase().includes('data')
             ));
@@ -122,7 +122,7 @@ KRITIEK:
         const recentMessages = messages.slice(-10);
 
         // Voeg eerdere berichten toe (alleen user en assistant berichten)
-        recentMessages.forEach(message => {
+        recentMessages.forEach((message: MessageType) => {
             if (message.type === 'user') {
                 conversationMessages.push({
                     role: 'user',
@@ -153,7 +153,8 @@ KRITIEK:
             // Mistral API call
             response = await mistral.chat.complete({
                 model: 'mistral-small-latest',
-                messages: conversationMessages,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                messages: conversationMessages as any,
                 maxTokens: 500
             });
 
@@ -170,7 +171,8 @@ KRITIEK:
             // OpenAI API call (default)
             response = await openai.chat.completions.create({
                 model: 'gpt-4.1-nano',
-                messages: conversationMessages,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                messages: conversationMessages as any,
                 max_tokens: 500
             });
 
@@ -187,7 +189,8 @@ KRITIEK:
             reply,
             modelUsed,
             provider: provider.toUpperCase(),
-            tokensUsed: provider === 'mistral' ? response.usage?.totalTokens : response.usage?.total_tokens
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            tokensUsed: provider === 'mistral' ? (response.usage as any)?.totalTokens : (response.usage as any)?.total_tokens
         });
 
     } catch (error) {
