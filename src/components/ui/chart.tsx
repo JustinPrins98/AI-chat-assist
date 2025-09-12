@@ -125,6 +125,14 @@ function ChartTooltipContent({
     indicator?: "line" | "dot" | "dashed"
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     payload?: any[]
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    label?: any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    labelFormatter?: any
+    labelClassName?: string
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    formatter?: any
+    color?: string
     nameKey?: string
     labelKey?: string
   }) {
@@ -258,11 +266,13 @@ function ChartLegendContent({
   payload,
   verticalAlign = "bottom",
   nameKey,
-}: React.ComponentProps<"div"> &
-  Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
-    hideIcon?: boolean
-    nameKey?: string
-  }) {
+}: React.ComponentProps<"div"> & {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload?: any[]
+  verticalAlign?: "top" | "middle" | "bottom"
+  hideIcon?: boolean
+  nameKey?: string
+}) {
   const { config } = useChart()
 
   if (!payload?.length) {
