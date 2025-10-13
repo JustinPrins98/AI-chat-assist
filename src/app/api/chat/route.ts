@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { Mistral } from '@mistralai/mistralai';
 import { ga4ExampleData } from '@/lib/ga4-sample-data';
+import { gscExampleData } from '@/lib/gsc-sample-data';
 
 interface MessageType {
     type: 'user' | 'ai';
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
     const { prompt, messages = [], provider = 'openai', isTaskGuidanceActive = false, activeTask = '' } = await req.json();
 
     // Log welke provider wordt gebruikt
-    console.log(`🔥 API CALL STARTED - Provider: ${provider.toUpperCase()}`);
+    console.log(` API CALL STARTED - Provider: ${provider.toUpperCase()}`);
 
     try {
         // Bouw de berichten array op
@@ -98,7 +99,7 @@ KRITIEK:
             }
         ];
 
-        // Alleen GA4 data toevoegen wanneer het relevant kan zijn voor de vraag
+        // Alleen GA4 + GSC data toevoegen wanneer het relevant kan zijn voor de vraag
         const needsAnalyticsData = prompt.toLowerCase().includes('analytics') ||
             prompt.toLowerCase().includes('data') ||
             prompt.toLowerCase().includes('conversie') ||
@@ -106,15 +107,31 @@ KRITIEK:
             prompt.toLowerCase().includes('verkeer') ||
             prompt.toLowerCase().includes('prestaties') ||
             prompt.toLowerCase().includes('rapport') ||
+            prompt.toLowerCase().includes('seo') ||
+            prompt.toLowerCase().includes('search console') ||
+            prompt.toLowerCase().includes('ranking') ||
+            prompt.toLowerCase().includes('positie') ||
+            prompt.toLowerCase().includes('zoekwoorden') ||
+            prompt.toLowerCase().includes('clicks') ||
+            prompt.toLowerCase().includes('impressions') ||
             messages.some((msg: MessageType) => msg.content && (
                 msg.content.toLowerCase().includes('analytics') ||
-                msg.content.toLowerCase().includes('data')
+                msg.content.toLowerCase().includes('data') ||
+                msg.content.toLowerCase().includes('seo')
             ));
 
         if (needsAnalyticsData || messages.length === 0) {
             conversationMessages.push({
                 role: 'user',
-                content: `Hier is de beschikbare GA4 JSON-data voor analyse:\n${JSON.stringify(ga4ExampleData, null, 2)}`
+                content: `Hier is de beschikbare analytics data voor analyse:
+
+📊 GA4 DATA (Google Analytics 4):
+${JSON.stringify(ga4ExampleData, null, 2)}
+
+🔍 GSC DATA (Google Search Console):
+${JSON.stringify(gscExampleData, null, 2)}
+
+Let op: Gebruik deze data alleen als het relevant is voor de vraag. Geef altijd concrete cijfers en percentages uit deze datasets.`
             });
         }
 
